@@ -1,6 +1,5 @@
 export ROLL		= stacki
-export ROLLVERSION	= 5.1rc12
-#export ROLLVERSION	= 5.0_$(shell date +%Y%m%d)_$(shell git rev-parse --short HEAD)
+export ROLLVERSION	= 5.1
 export RELEASE		= $(shell $(STACKBUILD.ABSOLUTE)/bin/os-release)
 
 ISOSIZE			= 0
