@@ -34,11 +34,7 @@ class SLES_11_12_Prober(Prober):
 		with open(f'{pallet_root}/content', 'r') as fi:
 			lines = fi.readlines()
 
-		name = None
-		version = None
-		release = None
-		arch = 'x86_64'
-		distro_family = 'sles'
+		name, version, release, arch, distro_family = [None] * 5
 
 		for line in lines:
 			l = line.split(None, 1)
@@ -50,8 +46,10 @@ class SLES_11_12_Prober(Prober):
 				if key == 'NAME':
 					if value == 'SUSE_SLES':
 						name = 'SLES'
+						distro_family = 'sles'
 					elif value == 'sle-sdk':
 						name = 'SLE-SDK'
+						distro_family = 'sles'
 				elif key == 'VERSION':
 					version = value
 				elif key == 'RELEASE':
@@ -61,6 +59,7 @@ class SLES_11_12_Prober(Prober):
 
 				# SLES12 ISO's
 				elif key == 'DISTRO':
+					arch = 'x86_64'
 					a = value.split(',')
 					v = a[0].split(':')
 
@@ -72,6 +71,7 @@ class SLES_11_12_Prober(Prober):
 						name = 'SUSE-Enterprise-Storage'
 
 					if name:
+						distro_family = 'sles'
 						version = v[4]
 						if len(v) > 5:
 							release = v[5]
