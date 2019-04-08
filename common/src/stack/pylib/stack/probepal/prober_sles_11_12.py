@@ -1,8 +1,28 @@
 import pathlib
 
-from common import PalletInfo, Probe
+from common import PalletInfo, Prober
 
-class PalletProberSles11_12(Probe):
+class SLES_11_12_Prober(Prober):
+	'''
+	This prober is intended to look for and parse a `content` file which indicates a sles11/12 pallet.
+
+	The contents of such a file look like this, though the keys change between sles11 and 12:
+
+	CONTENTSTYLE     11
+	DATADIR          suse
+	DESCRDIR         suse/setup/descr
+	DISTRO           cpe:/o:suse:sles:12:sp3,SUSE Linux Enterprise Server 12 SP3
+	LINGUAS          cs da de en en_GB en_US es fi fr hu it ja nb nl pl pt pt_BR ru sv zh zh_CN zh_TW
+	REGISTERPRODUCT  true
+	REPOID           obsproduct://build.suse.de/SUSE:SLE-12-SP3:GA/SLES/12.3/DVD/x86_64
+	VENDOR           SUSE
+	META SHA256 2213a47eb194729bc965dabb6ea18c44b4b29a0f77c478afc384ab0d7e8907eb  appdata-icons.tar.gz
+	META SHA256 ac56f9278a8da255de5fb63408e56848f0ac6597ba10dfbed221cf0f4330c056  appdata-screenshots.tar
+	META SHA256 be5fd8aeb4cdf272b4b0cc0b5e519bd3a781207f29775e4be17d64674631c7e9  appdata.xml.gz
+
+	'''
+
+
 
 	def __init__(self, weight=30, desc='sles 11-12'):
 		super().__init__(weight, desc)

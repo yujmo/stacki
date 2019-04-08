@@ -1,9 +1,11 @@
 import sys
 from operator import attrgetter
+import pathlib
 import importlib
 import pkgutil
+import inspect
 
-from common import UnrecognizedPallet
+import common
 
 # general:
 # this package allows for fingerprinting a directory to determine if it contains a stacki pallet
@@ -18,14 +20,17 @@ if __name__ == '__main__':
 	plugins = {
 		name: importlib.import_module(name)
 		for finder, name, ispkg
-		in pkgutil.iter_modules()
+		in pkgutil.iter_modules([pathlib.Path(common.__file__).parent])
 		if name.startswith('prober')
 	}
 
 	probes = []
-	# within those modules, find and instantiate any PalletProber* classes
 	for module in plugins.values():
-		probes.extend(getattr(module, cls)() for cls in dir(module) if cls.startswith('PalletProber'))
+		# Get the listing of all classes defined in the module,
+		# and instantiate the ones that are subclasses of Prober
+		for _, cls in inspect.getmembers(module, inspect.isclass):
+			if cls.__module__ == module.__name__ and issubclass(cls, common.Prober):
+				probes.append(cls())
 
 	# sort the probes by weight
 	# this lets us do things like check for rolls.xml inside foreign pallets,
@@ -54,7 +59,7 @@ if __name__ == '__main__':
 					# success!
 					print(pallet)
 					break
-			except UnrecognizedPallet as e:
+			except common.UnrecognizedPallet as e:
 				print_debug(e)
 		else: #nobreak
 			print('could not identify pallet')

@@ -1,8 +1,35 @@
 import pathlib
 
-from common import PalletInfo, Probe
+from common import PalletInfo, Prober
 
-class PalletProberTreeinfo(Probe):
+class TreeinfoProber(Prober):
+	'''
+	This prober is intended to look for and parse a .treeinfo file which indicates a rhel 7+ or sles15 iso
+
+	The contents of this file look like:
+
+	[general]
+	name = CentOS-7
+	family = CentOS
+	timestamp = 1504618609.47
+	variant =
+	version = 7
+	packagedir =
+	arch = x86_64
+
+	[stage2]
+	mainimage = LiveOS/squashfs.img
+
+	[images-x86_64]
+	kernel = images/pxeboot/vmlinuz
+	initrd = images/pxeboot/initrd.img
+	boot.iso = images/boot.iso
+
+	[images-xen]
+	kernel = images/pxeboot/vmlinuz
+	initrd = images/pxeboot/initrd.img
+	'''
+
 
 	def __init__(self, weight=10, desc='treeinfo files (rhel-based, sles15)'):
 		super().__init__(weight, desc)
@@ -13,6 +40,8 @@ class PalletProberTreeinfo(Probe):
 
 		with open(f'{pallet_root}/.treeinfo', 'r') as fi:
 			lines = fi.readlines()
+
+		name, version, release, arch, distro_family = [None] * 5
 
 		for line in lines:
 			kv = line.split('=')

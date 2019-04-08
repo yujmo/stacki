@@ -1,3 +1,5 @@
+from abc import ABC, abstractmethod
+
 class UnrecognizedPallet(Exception):
 	pass
 
@@ -25,18 +27,20 @@ class PalletInfo:
 	def is_complete(self):
 		return all((self.name, self.version, self.release, self.arch, self.distro_family))
 
-class Probe:
+class Prober(ABC):
 	'''
-	Base probe class.  Subclasses must implement probe() and probably __init__()
+	Base probe class.  Subclasses must implement probe() and __init__()
 	Lower weight probes will be attempted first.
 
 	`probe()` must return None or a PalletInfo() object
 	'''
 
+	@abstractmethod
 	def __init__(self, weight=90, desc=''):
 		self.weight = weight
 		self.desc = desc
 
+	@abstractmethod
 	def probe(self, pallet_root):
 		return None
 
