@@ -8,7 +8,7 @@ services:
     build:
       context: ..
       dockerfile: docker/frontend/Dockerfile
-    image: stacki/frontend-centos
+    image: stacki/frontend-centos:05.02.06.00
     hostname: frontend
     privileged: true
     ports:
