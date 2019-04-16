@@ -72,32 +72,8 @@ class TestAddVersionRegexBasicPlugin:
 		with pytest.raises(ParamError):
 			basic_plugin.validate_name(name = test_input)
 
-	def test_validate_make(self, basic_plugin):
-		"""Test that validate_make works if the make provided is not empty and exists."""
-		basic_plugin.owner.make_exists.return_value = True
-		mock_make = "foo"
-
-		basic_plugin.validate_make(make = mock_make)
-
-		basic_plugin.owner.make_exists.assert_called_once_with(make = mock_make)
-
-	@pytest.mark.parametrize(
-		"test_input, return_value",
-		(
-			("", True),
-			("foo", False),
-		)
-	)
-	def test_validate_make_failure(self, test_input, return_value, basic_plugin):
-		"""Test that validate_make fails with bad input."""
-		basic_plugin.owner.make_exists.return_value = return_value
-
-		with pytest.raises(ParamError):
-			basic_plugin.validate_make(make = test_input)
-
 	@patch(target = "stack.commands.add.firmware.version_regex.plugin_basic.unique_everseen", autospec = True)
 	@patch(target = "stack.commands.add.firmware.version_regex.plugin_basic.ExitStack", autospec = True)
-	@patch.object(target = Plugin, attribute = "validate_make", autospec = True)
 	@patch.object(target = Plugin, attribute = "validate_name", autospec = True)
 	@patch.object(target = Plugin, attribute = "validate_regex", autospec = True)
 	@patch.object(target = Plugin, attribute = "validate_args", autospec = True)
@@ -106,7 +82,6 @@ class TestAddVersionRegexBasicPlugin:
 		mock_validate_args,
 		mock_validate_regex,
 		mock_validate_name,
-		mock_validate_make,
 		mock_exit_stack,
 		mock_unique_everseen,
 		basic_plugin,
@@ -116,10 +91,15 @@ class TestAddVersionRegexBasicPlugin:
 		# We're using uppercase to ensure that lower is used correctly when processing args and params.
 		mock_models = ["MOCK_MODEL1", "MOCK_MODEL2", "MOCK_MODEL3"]
 		expected_models = tuple((string.lower() for string in mock_models))
-		mock_params = ["MOCK_NAME", "MOCK_DESCRIPTION", "MOCK_MAKE", ", ".join(mock_models)]
-		expected_name = mock_params[0].lower()
-		expected_make = mock_params[2].lower()
-		basic_plugin.owner.fillParams.return_value = mock_params
+		mock_params = {
+			"name": "MOCK_NAME",
+			"description": "MOCK_DESCRIPTION",
+			"make": "MOCK_MAKE",
+			"models": ", ".join(mock_models),
+		}
+		expected_name = mock_params["name"].lower()
+		expected_make = mock_params["make"].lower()
+		basic_plugin.owner.fillParams.return_value = mock_params.values()
 		mock_unique_everseen.return_value = (string for string in expected_models)
 
 		basic_plugin.run(args = (mock_params, mock_args))
@@ -138,7 +118,6 @@ class TestAddVersionRegexBasicPlugin:
 		mock_validate_args.assert_called_once_with(basic_plugin, args = mock_args)
 		mock_validate_regex.assert_called_once_with(basic_plugin, regex = mock_args[0])
 		mock_validate_name.assert_called_once_with(basic_plugin, name = expected_name)
-		mock_validate_make.assert_called_once_with(basic_plugin, make = expected_make)
 		# Expect the models to be made unique, forced to lowercase, and validated.
 		assert expected_models == tuple(*mock_unique_everseen.call_args[0])
 		basic_plugin.owner.ensure_models_exist.assert_called_once_with(
@@ -148,7 +127,7 @@ class TestAddVersionRegexBasicPlugin:
 		# Expect the DB entries to be made.
 		basic_plugin.owner.db.execute.assert_called_once_with(
 			ANY,
-			(mock_args[0], expected_name, mock_params[1]),
+			(mock_args[0], expected_name, mock_params["description"]),
 		)
 		basic_plugin.owner.call.assert_called_once_with(
 			command = "set.firmware.model.version_regex",
@@ -164,7 +143,6 @@ class TestAddVersionRegexBasicPlugin:
 
 	@patch(target = "stack.commands.add.firmware.version_regex.plugin_basic.unique_everseen", autospec = True)
 	@patch(target = "stack.commands.add.firmware.version_regex.plugin_basic.ExitStack", autospec = True)
-	@patch.object(target = Plugin, attribute = "validate_make", autospec = True)
 	@patch.object(target = Plugin, attribute = "validate_name", autospec = True)
 	@patch.object(target = Plugin, attribute = "validate_regex", autospec = True)
 	@patch.object(target = Plugin, attribute = "validate_args", autospec = True)
@@ -173,7 +151,6 @@ class TestAddVersionRegexBasicPlugin:
 		mock_validate_args,
 		mock_validate_regex,
 		mock_validate_name,
-		mock_validate_make,
 		mock_exit_stack,
 		mock_unique_everseen,
 		basic_plugin,
@@ -181,10 +158,15 @@ class TestAddVersionRegexBasicPlugin:
 		"""Test that run performs the expected action in the case where all arguments and parameters are valid but not models are provided."""
 		mock_args = ["mock_regex"]
 		# We're using uppercase to ensure that lower is used correctly when processing args and params.
-		mock_params = ["MOCK_NAME", "MOCK_DESCRIPTION", "MOCK_MAKE", ""]
-		expected_name = mock_params[0].lower()
-		expected_make = mock_params[2].lower()
-		basic_plugin.owner.fillParams.return_value = mock_params
+		mock_params = {
+			"name": "MOCK_NAME",
+			"description": "MOCK_DESCRIPTION",
+			"make": "MOCK_MAKE",
+			"models": "",
+		}
+		expected_name = mock_params["name"].lower()
+		expected_make = mock_params["make"].lower()
+		basic_plugin.owner.fillParams.return_value = mock_params.values()
 
 		basic_plugin.run(args = (mock_params, mock_args))
 
@@ -202,14 +184,14 @@ class TestAddVersionRegexBasicPlugin:
 		mock_validate_args.assert_called_once_with(basic_plugin, args = mock_args)
 		mock_validate_regex.assert_called_once_with(basic_plugin, regex = mock_args[0])
 		mock_validate_name.assert_called_once_with(basic_plugin, name = expected_name)
-		mock_validate_make.assert_called_once_with(basic_plugin, make = expected_make)
+		basic_plugin.owner.ensure_make_exists.assert_called_once_with(make = expected_make)
 		# Expect the models to not be validated.
 		mock_unique_everseen.assert_not_called()
 		basic_plugin.owner.ensure_models_exist.assert_not_called()
 		# Expect the DB entries to be made.
 		basic_plugin.owner.db.execute.assert_called_once_with(
 			ANY,
-			(mock_args[0], expected_name, mock_params[1]),
+			(mock_args[0], expected_name, mock_params["description"]),
 		)
 		basic_plugin.owner.call.assert_called_once_with(
 			command = "set.firmware.make.version_regex",
@@ -223,10 +205,21 @@ class TestAddVersionRegexBasicPlugin:
 		)
 		mock_exit_stack.return_value.__enter__.return_value.pop_all.assert_called_once_with()
 
-	@pytest.mark.parametrize("failure_mock", ("validate_make", "validate_name", "validate_regex", "validate_args"))
+	@pytest.mark.parametrize(
+		"failure_mock, mock_models",
+		(
+			("ensure_make_exists", ""),
+			("ensure_models_exist", "MOCK_MODEL1, MOCK_MODEL2, MOCK_MODEL3"),
+			("validate_name", ""),
+			("validate_name", "MOCK_MODEL1, MOCK_MODEL2, MOCK_MODEL3"),
+			("validate_regex", ""),
+			("validate_regex", "MOCK_MODEL1, MOCK_MODEL2, MOCK_MODEL3"),
+			("validate_args", ""),
+			("validate_args", "MOCK_MODEL1, MOCK_MODEL2, MOCK_MODEL3"),
+		),
+	)
 	@patch(target = "stack.commands.add.firmware.version_regex.plugin_basic.unique_everseen", autospec = True)
 	@patch(target = "stack.commands.add.firmware.version_regex.plugin_basic.ExitStack", autospec = True)
-	@patch.object(target = Plugin, attribute = "validate_make", autospec = True)
 	@patch.object(target = Plugin, attribute = "validate_name", autospec = True)
 	@patch.object(target = Plugin, attribute = "validate_regex", autospec = True)
 	@patch.object(target = Plugin, attribute = "validate_args", autospec = True)
@@ -235,21 +228,27 @@ class TestAddVersionRegexBasicPlugin:
 		mock_validate_args,
 		mock_validate_regex,
 		mock_validate_name,
-		mock_validate_make,
 		mock_exit_stack,
 		mock_unique_everseen,
 		failure_mock,
+		mock_models,
 		basic_plugin,
 	):
 		"""Test that run fails when the parameters do not validate."""
 		mock_args = ["mock_regex"]
-		mock_params = ["MOCK_NAME", "MOCK_DESCRIPTION", "MOCK_MAKE", "MOCK_MODEL1, MOCK_MODEL2, MOCK_MODEL3"]
-		basic_plugin.owner.fillParams.return_value = mock_params
+		mock_params = {
+			"name": "MOCK_NAME",
+			"description": "MOCK_DESCRIPTION",
+			"make": "MOCK_MAKE",
+			"models": mock_models,
+		}
+		basic_plugin.owner.fillParams.return_value = mock_params.values()
 		validation_function_mocks = {
 			"validate_args": mock_validate_args,
 			"validate_regex": mock_validate_regex,
 			"validate_name": mock_validate_name,
-			"validate_make": mock_validate_make,
+			"ensure_make_exists": basic_plugin.owner.ensure_make_exists,
+			"ensure_models_exist": basic_plugin.owner.ensure_models_exist,
 		}
 		# Set the appropriate mock call to fail
 		validation_function_mocks[failure_mock].side_effect = StackError("Test error")
@@ -260,38 +259,9 @@ class TestAddVersionRegexBasicPlugin:
 		# Make sure the database calls are not made if the arguments don't validate
 		basic_plugin.owner.db.execute.assert_not_called()
 
-	@patch(target = "stack.commands.add.firmware.version_regex.plugin_basic.unique_everseen", autospec = True)
-	@patch(target = "stack.commands.add.firmware.version_regex.plugin_basic.ExitStack", autospec = True)
-	@patch.object(target = Plugin, attribute = "validate_make", autospec = True)
-	@patch.object(target = Plugin, attribute = "validate_name", autospec = True)
-	@patch.object(target = Plugin, attribute = "validate_regex", autospec = True)
-	@patch.object(target = Plugin, attribute = "validate_args", autospec = True)
-	def test_run_model_validation_errors(
-		self,
-		mock_validate_args,
-		mock_validate_regex,
-		mock_validate_name,
-		mock_validate_make,
-		mock_exit_stack,
-		mock_unique_everseen,
-		basic_plugin,
-	):
-		"""Test that run fails when the models do not validate."""
-		mock_args = ["mock_regex"]
-		mock_params = ["MOCK_NAME", "MOCK_DESCRIPTION", "MOCK_MAKE", "MOCK_MODEL1, MOCK_MODEL2, MOCK_MODEL3"]
-		basic_plugin.owner.fillParams.return_value = mock_params
-		basic_plugin.owner.ensure_models_exist.side_effect = StackError("Test error")
-
-		with pytest.raises(StackError):
-			basic_plugin.run(args = (mock_params, mock_args))
-
-		# Make sure the database calls are not made if the arguments don't validate
-		basic_plugin.owner.db.execute.assert_not_called()
-
 	@pytest.mark.parametrize("mock_models", ("", "MOCK_MODEL1, MOCK_MODEL2, MOCK_MODEL3"))
 	@patch(target = "stack.commands.add.firmware.version_regex.plugin_basic.unique_everseen", autospec = True)
 	@patch(target = "stack.commands.add.firmware.version_regex.plugin_basic.ExitStack", autospec = True)
-	@patch.object(target = Plugin, attribute = "validate_make", autospec = True)
 	@patch.object(target = Plugin, attribute = "validate_name", autospec = True)
 	@patch.object(target = Plugin, attribute = "validate_regex", autospec = True)
 	@patch.object(target = Plugin, attribute = "validate_args", autospec = True)
@@ -300,7 +270,6 @@ class TestAddVersionRegexBasicPlugin:
 		mock_validate_args,
 		mock_validate_regex,
 		mock_validate_name,
-		mock_validate_make,
 		mock_exit_stack,
 		mock_unique_everseen,
 		mock_models,
@@ -308,8 +277,13 @@ class TestAddVersionRegexBasicPlugin:
 	):
 		"""Test that run fails and cleans up when setting the relation to the make or model fails."""
 		mock_args = ["mock_regex"]
-		mock_params = ["MOCK_NAME", "MOCK_DESCRIPTION", "MOCK_MAKE", mock_models]
-		basic_plugin.owner.fillParams.return_value = mock_params
+		mock_params = {
+			"name": "MOCK_NAME",
+			"description": "MOCK_DESCRIPTION",
+			"make": "MOCK_MAKE",
+			"models": mock_models,
+		}
+		basic_plugin.owner.fillParams.return_value = mock_params.values()
 		basic_plugin.owner.call.side_effect = StackError("Test error")
 
 		with pytest.raises(StackError):
@@ -319,6 +293,6 @@ class TestAddVersionRegexBasicPlugin:
 		mock_exit_stack.return_value.__enter__.return_value.callback.assert_called_once_with(
 			basic_plugin.owner.call,
 			command = "remove.firmware.version_regex",
-			args = [mock_params[0].lower()],
+			args = [mock_params["name"].lower()],
 		)
 		mock_exit_stack.return_value.__enter__.return_value.pop_all.assert_not_called()

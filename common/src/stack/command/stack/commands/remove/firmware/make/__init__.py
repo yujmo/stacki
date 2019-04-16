@@ -10,3 +10,20 @@
 # https://github.com/Teradata/stacki/blob/master/LICENSE-ROCKS.txt
 # @rocks@
 
+import stack.commands
+
+class Command(stack.commands.remove.firmware.command):
+	"""
+	Removes a firmware make from the stacki database.
+
+	<arg type='string' name='make' repeat='1'>
+	One or more make names to remove. This will also remove any associated models and firmware associated with those models.
+	</arg>
+
+	<example cmd="remove firmware make chevrolet mercedes">
+	Removes two makes with the names 'chevrolet' and 'mercedes'. This also removes any associated models and firmware associated with the models removed.
+	</example>
+	"""
+
+	def run(self, params, args):
+		self.runPlugins(args = args)

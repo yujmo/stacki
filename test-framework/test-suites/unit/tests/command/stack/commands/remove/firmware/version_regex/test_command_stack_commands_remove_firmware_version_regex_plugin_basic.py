@@ -42,23 +42,13 @@ class TestRemoveFirmwareVersionRegexBasicPlugin:
 		basic_plugin.owner.db.execute.assert_called_once_with(ANY, (expected_args,))
 		mock_lowered.assert_called_once_with(mock_args)
 		mock_unique_everseen.assert_called_once_with(mock_lowered.return_value)
-		basic_plugin.owner.ensure_regexes_exist.assert_called_once_with(names = expected_args)
+		basic_plugin.owner.ensure_version_regexes_exist.assert_called_once_with(names = expected_args)
 
 	@patch(target = "stack.commands.remove.firmware.version_regex.plugin_basic.lowered", autospec = True)
 	@patch(target = "stack.commands.remove.firmware.version_regex.plugin_basic.unique_everseen", autospec = True)
-	def test_run_missing_args(self, mock_unique_everseen, mock_lowered, basic_plugin):
-		"""Test that run fails if no args are passed."""
-		with pytest.raises(ArgRequired):
-			basic_plugin.run(args = [])
-
-		#  sure the DB is not modified with bad arguments.
-		basic_plugin.owner.db.execute.assert_not_called()
-
-	@patch(target = "stack.commands.remove.firmware.version_regex.plugin_basic.lowered", autospec = True)
-	@patch(target = "stack.commands.remove.firmware.version_regex.plugin_basic.unique_everseen", autospec = True)
-	def test_run_s_do_not_exist(self, mock_unique_everseen, mock_lowered, basic_plugin):
-		"""Test that run fails if no ensure s exist fails."""
-		basic_plugin.owner.ensure_regexes_exist.side_effect = CommandError(cmd = basic_plugin.owner, msg = "Test error")
+	def test_run_regexes_do_not_exist(self, mock_unique_everseen, mock_lowered, basic_plugin):
+		"""Test that run fails if no ensure_version_regexes_exist fails."""
+		basic_plugin.owner.ensure_version_regexes_exist.side_effect = CommandError(cmd = basic_plugin.owner, msg = "Test error")
 
 		with pytest.raises(CommandError):
 			basic_plugin.run(args = ["foo", "bar", "baz"])

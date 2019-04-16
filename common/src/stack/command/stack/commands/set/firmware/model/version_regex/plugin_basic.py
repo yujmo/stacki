@@ -22,6 +22,9 @@ class Plugin(stack.commands.Plugin):
 
 	def run(self, args):
 		params, args = args
+		# Lowercase and make all args unique.
+		models = tuple(unique_everseen(lowered(args)))
+
 		make, version_regex, = lowered(
 			self.owner.fillParams(
 				names = [
@@ -31,33 +34,8 @@ class Plugin(stack.commands.Plugin):
 				params = params,
 			),
 		)
-		# Require model names
-		if not args:
-			raise ArgRequired(cmd = self.owner, arg = "models")
-
-		args = tuple(unique_everseen(lowered(args)))
-		# The models must exist
-		self.owner.ensure_models_exist(models = args, make = make)
-		# A make is required
-		if not make:
-			raise ParamRequired(cmd = self.owner, param = "make")
-		# The make must exist
-		if not self.owner.make_exists(make = make):
-			raise ParamError(
-				cmd = self.owner,
-				param = "make",
-				msg = f"The make {make} does not exist.",
-			)
-		# A version_regex is required
-		if not version_regex:
-			raise ParamRequired(cmd = self.owner, param = "version_regex")
-		# The version_regex must exist
-		if not self.owner.version_regex_exists(name = version_regex):
-			raise ParamError(
-				cmd = self.owner,
-				param = "version_regex",
-				msg = f"The version_regex {version_regex} does not exist in the database.",
-			)
+		self.owner.ensure_models_exist(make = make, models = models)
+		self.owner.ensure_version_regex_exists(name = version_regex)
 
 		# get the version_regex ID
 		version_regex_id = self.owner.get_version_regex_id(name = version_regex)
@@ -68,5 +46,5 @@ class Plugin(stack.commands.Plugin):
 				INNER JOIN firmware_make ON firmware_make.id = firmware_model.make_id
 			SET firmware_model.version_regex_id=%s WHERE firmware_model.name IN %s AND firmware_make.name=%s
 			""",
-			(version_regex_id, args, make),
+			(version_regex_id, models, make),
 		)

@@ -66,20 +66,6 @@ class Plugin(stack.commands.Plugin):
 				msg = f"A version_regex with the name {name} already exists in the database."
 			)
 
-	def validate_make(self, make):
-		"""Validate that the make is provided and exists in the database."""
-		# The make is required.
-		if not make:
-			raise ParamRequired(cmd = self.owner, param = "make")
-
-		# The make must exist
-		if not self.owner.make_exists(make = make):
-			raise ParamError(
-				cmd = self.owner,
-				param = "make",
-				msg = f"The make {make} does not exist."
-			)
-
 	def run(self, args):
 		params, args = args
 		self.validate_args(args = args)
@@ -98,7 +84,6 @@ class Plugin(stack.commands.Plugin):
 		name = name.lower()
 		self.validate_name(name = name)
 		make = make.lower()
-		self.validate_make(make = make)
 		models = models.lower()
 		# Process models if specified
 		if models:
@@ -107,8 +92,11 @@ class Plugin(stack.commands.Plugin):
 					(model.strip() for model in models.split(',') if model.strip())
 				)
 			)
-			# The models must exist
+			# The make and models must exist
 			self.owner.ensure_models_exist(make = make, models = models)
+		else:
+			# Only need to check that the make exists.
+			self.owner.ensure_make_exists(make = make)
 
 		with ExitStack() as cleanup:
 			# add the regex

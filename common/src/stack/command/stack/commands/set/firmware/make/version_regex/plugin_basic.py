@@ -22,31 +22,21 @@ class Plugin(stack.commands.Plugin):
 
 	def run(self, args):
 		params, args = args
-		version_regex, = lowered(
-			self.owner.fillParams(names = [("version_regex", "")], params = params)
-		)
-		# Require make names
-		if not args:
-			raise ArgRequired(cmd = self.owner, arg = "makes")
+		makes = tuple(unique_everseen(lowered(args)))
 
-		args = tuple(unique_everseen(lowered(args)))
+		version_regex, = lowered(
+			self.owner.fillParams(names = [("version_regex", "")], params = params),
+		)
+
 		# The makes must exist
-		self.owner.ensure_makes_exist(makes = args)
-		# A version_regex is required
-		if not version_regex:
-			raise ParamRequired(cmd = self.owner, param = "version_regex")
+		self.owner.ensure_makes_exist(makes = makes)
 		# The version_regex must exist
-		if not self.owner.version_regex_exists(name = version_regex):
-			raise ParamError(
-				cmd = self.owner,
-				param = 'version_regex',
-				msg = f'The version_regex {version_regex} does not exist in the database.',
-			)
+		self.owner.ensure_version_regex_exists(name = version_regex)
 
 		# get the version_regex ID
 		version_regex_id = self.owner.get_version_regex_id(name = version_regex)
 		# associate the makes with the version_regex
 		self.owner.db.execute(
 			"UPDATE firmware_make SET version_regex_id=%s WHERE name in %s",
-			(version_regex_id, args),
+			(version_regex_id, makes),
 		)

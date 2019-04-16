@@ -21,13 +21,10 @@ class Plugin(stack.commands.Plugin):
 		return "basic"
 
 	def run(self, args):
-		# Require version_regex names
-		if not args:
-			raise ArgRequired(cmd = self.owner, arg = "version_regexes")
 		# lowercase all args and remove any duplicates
-		args = tuple(unique_everseen(lowered(args)))
+		names = tuple(unique_everseen(lowered(args)))
 		# The version_regexes must exist
-		self.owner.ensure_regexes_exist(names = args)
+		self.owner.ensure_version_regexes_exist(names = names)
 
 		# remove the version_regexes
-		self.owner.db.execute("DELETE FROM firmware_version_regex WHERE name IN %s", (args,))
+		self.owner.db.execute("DELETE FROM firmware_version_regex WHERE name IN %s", (names,))
