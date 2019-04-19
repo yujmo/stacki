@@ -2,6 +2,7 @@ import pytest
 import paramiko
 import socket
 import re
+import math
 from collections import namedtuple
 from itertools import groupby
 
@@ -23,7 +24,7 @@ def get_partition_data(hostname, attributes):
 		return {}
 
 	# Get backend host partition informaiton using lsblk
-	stdin, stdout, stderr = backend_ssh.exec_command(f'lsblk -r -n -o {",".join(attributes)}')
+	stdin, stdout, stderr = backend_ssh.exec_command(f'lsblk -r -n -b -o {",".join(attributes)}')
 
 	lsblk_data = stdout.readlines()
 
@@ -35,18 +36,47 @@ def get_partition_data(hostname, attributes):
 		for line in lsblk_data:
 			part_values = partition_attributes(*line.rstrip().split(' '))
 
+			# Convert bytes to megabytes if the size column was specified
+			if 'size' in attributes:
+				part_values = part_values._replace(size = int(part_values.size) / math.pow(2, 20))
+
 			# Get the name of the disk by taking the partition name without it's
 			# partition number
 			disk = ''.join(filter(lambda x: not x.isdigit(), part_values.name))
 
-			if disk == part_values.name:
-				continue
+			#if disk == part_values.name:
+				#continue
 
 			disks.setdefault(disk, {})[part_values.name] = part_values
 	else:
 		return {}
 
 	return disks
+
+
+def check_partition_size(partitions, curr_partition, expect_size, disk):
+	part_size = 0
+
+	if expect_size == '*':
+		return False
+
+	elif int(expect_size) == 0:
+		for partition, attributes in partitions.items():
+			if partition != disk and partition != curr_partition.name:
+				part_size += int(attributes.size)
+
+		remain_size = int(partitions[disk].size) - int(part_size)
+
+		if math.isclose(int(remain_size), int(curr_partition.size), abs_tol=100):
+			return True
+		else:
+			return False
+
+	elif not math.isclose( int(expect_size), int(curr_partition.size), abs_tol=100):
+		return False
+
+	else:
+		return True
 
 
 @pytest.fixture
@@ -60,7 +90,7 @@ def verify_disk():
 
 		# If we could not get it, return empty dict
 		if not part_data:
-			return {}
+			pytest.fail(f'Could get partition data from host {hostname}')
 
 		matched_disks = {}
 
@@ -72,14 +102,24 @@ def verify_disk():
 			# and see if it is actually there
 			if check_all_disks:
 				for partition, attributes in partitions.items():
+
+					if partition == disk:
+						continue
+
 					try:
 						check_part = expected_partitions[disk][partition]
 
 						attribute_not_match = {
 							field: getattr(attributes, field)
 							for field in check_part._fields if getattr(attributes, field)
-							!= getattr(check_part, field)
+							!= getattr(check_part, field) and  field != 'size'
 						}
+
+
+						if 'size' in check_part._fields:
+							part_match = check_partition_size(partitions, attributes, check_part.size, disk)
+							if not part_match:
+								attribute_not_match['size'] = attributes.size
 
 						if attribute_not_match:
 							matched_partitions[partition] = attribute_not_match
@@ -109,6 +149,7 @@ def verify_disk():
 
 						if attribute_match:
 							continue
+
 						else:
 							partition_info = {field: getattr(attributes, field) for field in attributes._fields}
 							matched_partitions[disk + partition_num] = partition_info
@@ -123,8 +164,13 @@ def verify_disk():
 						attribute_not_match = {
 							field: getattr(check_part, field)
 							for field in attributes._fields if getattr(check_part, field)
-							!= getattr(attributes, field)
+							!= getattr(attributes, field) and field != 'size'
 						}
+
+						if 'size' in attributes._fields:
+							part_match = check_partition_size(partitions, check_part, attributes.size, disk)
+							if not part_match:
+								attribute_not_match['size'] = check_part.size
 
 						if attribute_not_match:
 							matched_partitions[disk + partition_num] = attribute_not_match
