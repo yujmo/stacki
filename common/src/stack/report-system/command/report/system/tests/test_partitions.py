@@ -19,6 +19,9 @@ class TestStoragePartition:
 		partition_info = namedtuple('partition', ['name', 'mountpoint', 'label', 'fstype', 'size'])
 		errors = []
 
+		if not storage_config:
+			pytest.skip(f'Could not get stacki partition config for host {hostname}')
+
 		# Convert stacki storage data structure to one
 		# pytest fixture can use
 		for partition in storage_config:
@@ -59,6 +62,14 @@ class TestStoragePartition:
 						errors.append(f'On partition {partition}: ')
 
 						for attr, value in attributes.items():
-							errors.append(f'{attr} found with value {value} but was configured with {getattr(check_config[disk][partition], attr)},')
+							config_value = getattr(check_config[disk][partition], attr)
+
+							if config_value == '':
+								config_value = 'no value'
+
+							if value == '':
+								value = 'no value'
+
+							errors.append(f'{attr} found with value {value} but was configured with {config_value},')
 
 		assert not errors, f'Host {hostname} found with partitioning mismatch from original config: {" ".join(errors)}'

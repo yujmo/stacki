@@ -44,9 +44,6 @@ def get_partition_data(hostname, attributes):
 			# partition number
 			disk = ''.join(filter(lambda x: not x.isdigit(), part_values.name))
 
-			#if disk == part_values.name:
-				#continue
-
 			disks.setdefault(disk, {})[part_values.name] = part_values
 	else:
 		return {}
@@ -90,7 +87,7 @@ def verify_disk():
 
 		# If we could not get it, return empty dict
 		if not part_data:
-			pytest.fail(f'Could get partition data from host {hostname}')
+			pytest.skip(f'Could not get partition data from host {hostname}')
 
 		matched_disks = {}
 
@@ -114,7 +111,6 @@ def verify_disk():
 							for field in check_part._fields if getattr(attributes, field)
 							!= getattr(check_part, field) and  field != 'size'
 						}
-
 
 						if 'size' in check_part._fields:
 							part_match = check_partition_size(partitions, attributes, check_part.size, disk)
