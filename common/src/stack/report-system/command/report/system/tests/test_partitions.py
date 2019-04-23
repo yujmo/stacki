@@ -71,5 +71,7 @@ class TestStoragePartition:
 								value = 'no value'
 
 							errors.append(f'{attr} found with value {value} but was configured with {config_value},')
+				else:
+					errors.append(f'Disk {disk} not found on host {hostname},')
 
 		assert not errors, f'Host {hostname} found with partitioning mismatch from original config: {" ".join(errors)}'

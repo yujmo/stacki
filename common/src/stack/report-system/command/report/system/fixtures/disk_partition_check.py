@@ -126,6 +126,13 @@ def verify_disk():
 					except KeyError:
 						matched_partitions[partition] = {}
 
+				for check_disk in expected_partitions.keys():
+					try:
+						part_data[check_disk]
+
+					except KeyError:
+						matched_disks[check_disk] = {}
+
 			else:
 				for partition_num, attributes in expected_partitions.items():
 
