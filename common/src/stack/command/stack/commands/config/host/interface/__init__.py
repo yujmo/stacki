@@ -116,7 +116,7 @@ class Command(stack.commands.config.host.command):
 		#
 		for (mac, interface, module, ks) in discovered_macs:
 			rows = self.db.select("""mac from networks
-				where mac = %s """, mac)
+				where mac = "%s" """, mac)
 			if rows:
 				self.command('set.host.interface.interface',
 					[host, 'interface=%s' % interface, 'mac=%s' % mac])
@@ -132,7 +132,7 @@ class Command(stack.commands.config.host.command):
 		#
 		for (mac, interface, module, ks) in discovered_macs:
 			rows = self.db.select("""mac from networks
-				where mac = %s """, mac)
+				where mac = "%s" """, mac)
 			if not rows:
 				# Check if the interface exists without a MAC.
 				r = self.db.select("""device from networks, nodes
