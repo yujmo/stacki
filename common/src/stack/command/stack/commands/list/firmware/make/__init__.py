@@ -27,15 +27,15 @@ class Command(stack.commands.list.firmware.command):
 
 	def run(self, params, args):
 		expanded, = self.fillParams(
-			names = [('expanded', False)],
-			params = params
+			names = [("expanded", False)],
+			params = params,
 		)
 		expanded = self.str2bool(expanded)
 		header = []
 		values = []
 		for provides, results in self.runPlugins(args = expanded):
-			header.extend(results['keys'])
-			values.extend(results['values'])
+			header.extend(results["keys"])
+			values.extend(results["values"])
 
 		self.beginOutput()
 		for owner, vals in values:

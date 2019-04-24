@@ -16,14 +16,14 @@ class Plugin(stack.commands.Plugin):
 	"""Returns the names of all makes in the database."""
 
 	def provides(self):
-		return 'basic'
+		return "basic"
 
 	def run(self, args):
 		# If expanded is true, also list any user defined implementations and version regexes
 		if args:
-			makes = {
-				'keys': ['make', 'version_regex_name'],
-				'values': [
+			return {
+				"keys": ["make", "version_regex_name"],
+				"values": [
 					(row[0], row[1:]) for row in self.owner.db.select(
 						"""
 						firmware_make.name, firmware_version_regex.name
@@ -34,11 +34,9 @@ class Plugin(stack.commands.Plugin):
 					)
 				]
 			}
-		# Otherwise just return the names of the makes.
-		else:
-			makes = {
-				'keys': ['make'],
-				'values': [(row[0], []) for row in self.owner.db.select('name FROM firmware_make')]
-			}
 
-		return makes
+		# Otherwise just return the names of the makes.
+		return {
+			"keys": ["make"],
+			"values": [(row[0], []) for row in self.owner.db.select("name FROM firmware_make")]
+		}
