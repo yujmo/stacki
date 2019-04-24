@@ -1,5 +1,5 @@
 # @copyright@
-# Copyright (c) 2006 - 2018 Teradata
+# Copyright (c) 2006 - 2019 Teradata
 # All rights reserved. Stacki(r) v5.x stacki.com
 # https://github.com/Teradata/stacki/blob/master/LICENSE.txt
 # @copyright@
@@ -11,35 +11,28 @@
 # @rocks@
 
 import stack.commands
-from stack.util import unique_everseen
+from stack.util import unique_everseen, lowered
 from stack.exception import ArgRequired, ArgError, CommandError
 
 class Plugin(stack.commands.Plugin):
 	"""Attempts to add all provided make names to the database."""
 
 	def provides(self):
-		return 'basic'
+		return "basic"
 
 	def run(self, args):
-		# Require at least one make name
-		if not args:
-			raise ArgRequired(cmd = self.owner, arg = 'make')
-
 		# get rid of any duplicate names
-		makes = tuple(unique_everseen(args))
+		makes = tuple(unique_everseen(lowered(args)))
 		# ensure the make names don't already exist
-		try:
-			self.owner.ensure_unique_makes(makes = makes)
-		except CommandError as exception:
-			raise ArgError(cmd = self.owner, arg = 'make', msg = exception.message())
+		self.owner.ensure_unique_makes(makes = makes)
 
-		for make in args:
-			self.owner.db.execute(
-				'''
-				INSERT INTO firmware_make (
-					name
-				)
-				VALUES (%s)
-				''',
-				make
+		self.owner.db.execute(
+			"""
+			INSERT INTO firmware_make (
+				name
 			)
+			VALUES (%s)
+			""",
+			[(make,) for make in makes],
+			many = True,
+		)
