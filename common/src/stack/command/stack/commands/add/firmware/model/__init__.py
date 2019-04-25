@@ -14,19 +14,19 @@ import stack.commands
 
 class Command(stack.commands.add.firmware.command):
 	"""
-	Adds a firmware model to the stacki database.
+	Adds firmware models to the stacki database.
 
-	<arg type='string' name='model' repeat='1'>
-	One or more model names to add. model names are required to be unique, and any duplicates will be ignored.
+	<arg type='string' name='models' repeat='1'>
+	One or more model names to add. Model names are required to be unique, and any duplicates will be ignored.
 	</arg>
 
 	<param type='string' name='make'>
-	The maker of the models being added. If this does not correspond to an already existing make, one will be added.
+	The make of the models being added. If this does not correspond to an already existing make, one will be added.
 	</param>
 
 	<param type='string' name='imp'>
 	The implementation name to run for the models being added. This should be the name of the implementation file minus the 'imp_' prefix and file extension.
-	If this does not correspond to an already existing imp, one will be added.
+	If this does not correspond to an already existing implementation, one will be added.
 	</param>
 
 	<example cmd="add firmware model awesome_9001 mediocre_5200 make='boss hardware corp' imp=boss_hardware_corp">

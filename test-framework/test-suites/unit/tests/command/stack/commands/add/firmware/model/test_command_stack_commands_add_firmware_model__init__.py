@@ -1,9 +1,9 @@
 from unittest.mock import patch
 import pytest
-from stack.commands.add.firmware.make import Command
+from stack.commands.add.firmware.model import Command
 
-class TestAddFirmwareMakeCommand:
-	"""A test case to hold the tests for the add firmware make stacki Command class."""
+class TestAddFirmwareModelCommand:
+	"""A test case to hold the tests for the add firmware model stacki Command class."""
 
 	class CommandUnderTest(Command):
 		"""A class derived from the Command class under test used to override __init__.
@@ -23,7 +23,8 @@ class TestAddFirmwareMakeCommand:
 	def test_run(self, mock_runPlugins, command):
 		"""Test that run will run the plugins passing through the args."""
 		mock_args = ["foo", "bar", "baz"]
+		mock_params = {"fizz": "buzz"}
 
-		command.run(args = mock_args, params = "unused")
+		command.run(args = mock_args, params = mock_params)
 
-		mock_runPlugins.assert_called_once_with(command, args = mock_args)
+		mock_runPlugins.assert_called_once_with(command, args = (mock_params, mock_args))
