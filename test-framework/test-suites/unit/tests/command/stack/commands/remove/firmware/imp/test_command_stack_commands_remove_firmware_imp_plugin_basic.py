@@ -47,16 +47,6 @@ class TestRemoveFirmwareImpBasicPlugin:
 
 	@patch(target = "stack.commands.remove.firmware.imp.plugin_basic.lowered", autospec = True)
 	@patch(target = "stack.commands.remove.firmware.imp.plugin_basic.unique_everseen", autospec = True)
-	def test_run_missing_args(self, mock_unique_everseen, mock_lowered, basic_plugin):
-		"""Test that run fails if no args are passed."""
-		with pytest.raises(ArgRequired):
-			basic_plugin.run(args = [])
-
-		# Make sure the DB is not modified with bad arguments.
-		basic_plugin.owner.db.execute.assert_not_called()
-
-	@patch(target = "stack.commands.remove.firmware.imp.plugin_basic.lowered", autospec = True)
-	@patch(target = "stack.commands.remove.firmware.imp.plugin_basic.unique_everseen", autospec = True)
 	def test_run_imps_do_not_exist(self, mock_unique_everseen, mock_lowered, basic_plugin):
 		"""Test that run fails if ensure imps exist fails."""
 		basic_plugin.owner.ensure_imps_exist.side_effect = CommandError(cmd = basic_plugin.owner, msg = "Test error")

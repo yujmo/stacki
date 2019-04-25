@@ -1,9 +1,9 @@
 from unittest.mock import patch
 import pytest
-from stack.commands.remove.firmware.imp import Command
+from stack.commands.remove.firmware.make import Command
 
-class TestRemoveFirmwareImpCommand:
-	"""A test case to hold the tests for the remove firmware imp stacki Command class."""
+class TestRemoveFirmwareMakeCommand:
+	"""A test case to hold the tests for the remove firmware make stacki Command class."""
 
 	class CommandUnderTest(Command):
 		"""A class derived from the Command class under test used to override __init__.

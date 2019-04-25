@@ -22,9 +22,6 @@ class Plugin(stack.commands.Plugin):
 		return "basic"
 
 	def run(self, args):
-		# Require implementation names
-		if not args:
-			raise ArgRequired(cmd = self.owner, arg = "imps")
 		# remove any duplicates
 		args = tuple(unique_everseen(lowered(args)))
 		# The imps must exist
