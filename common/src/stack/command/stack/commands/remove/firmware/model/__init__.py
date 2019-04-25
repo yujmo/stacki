@@ -21,7 +21,7 @@ class Command(stack.commands.remove.firmware.command):
 	</arg>
 
 	<param type='string' name='make'>
-	The maker of the models being removed. This mist correspond to an already existing make.
+	The maker of the models being removed. This must correspond to an already existing make.
 	</param>
 
 	<example cmd="remove firmware model awesome_9001 mediocre_5200 make='boss hardware corp'">

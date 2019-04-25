@@ -7,7 +7,7 @@ from stack.exception import ArgRequired, CommandError
 from stack.commands.remove.firmware.make.plugin_basic import Plugin
 
 class TestRemoveFirmwareMakeBasicPlugin:
-	"""A test case for the remove firmware make version_regex basic plugin."""
+	"""A test case for the remove firmware make basic plugin."""
 
 	@pytest.fixture
 	def basic_plugin(self):
