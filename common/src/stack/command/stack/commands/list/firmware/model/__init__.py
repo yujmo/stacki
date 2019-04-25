@@ -17,25 +17,29 @@ class Command(stack.commands.list.firmware.command):
 	Lists all firmware models tracked by stacki.
 
 	<param type='bool' name='expanded'>
-	Set this to list more detailed firmware model information
+	Set this to list more detailed firmware model information.
 	</param>
 
 	<example cmd="stack list firmware model">
 	Lists all firmware models tracked in the stacki database.
 	</example>
+
+	<example cmd="stack list firmware model expanded=true">
+	Lists additional information for all firmware models tracked in the database.
+	</example>
 	"""
 
 	def run(self, params, args):
 		expanded, = self.fillParams(
-			names = [('expanded', False)],
+			names = [("expanded", False)],
 			params = params
 		)
 		expanded = self.str2bool(expanded)
 		header = []
 		values = []
 		for provides, results in self.runPlugins(args = expanded):
-			header.extend(results['keys'])
-			values.extend(results['values'])
+			header.extend(results["keys"])
+			values.extend(results["values"])
 
 		self.beginOutput()
 		for owner, vals in values:
