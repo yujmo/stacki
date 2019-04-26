@@ -21,7 +21,7 @@ class TestLinkUp:
 			]
 
 			try:
-				backend_ssh.connect(hostname=f'{backend}')
+				backend_ssh.connect(hostname=f'{backend}', timeout=5)
 
 			except (paramiko.SSHException, socket.error):
 				pytest.skip(f'Could not ssh into host {backend}')
