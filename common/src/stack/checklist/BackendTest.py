@@ -4,6 +4,7 @@
 from collections import deque
 import os
 import re
+import socket
 import subprocess
 import threading
 import time
@@ -164,8 +165,30 @@ class BackendTest:
 			msg = 'Backend - %s - Not Present' % BackendTest.PARTITION_XML
 			outputState("Partition_XML_Present", True, msg)
 
+	def checkSSHOpen(self):
+		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		numRetries = 100
+		count = 1
+		result = -1
+		msg = ''
+
+		while count <= numRetries:
+			result = sock.connect_ex(('127.0.0.1', 2200))
+			if result == 0:
+				outputState("SSH_OPEN", False, msg)
+				break
+
+			count = count + 1
+			time.sleep(1)
+
+		if result == -1:
+			msg = 'Error - SSH Port 2200 is not yet open'
+			outputState("SSH_OPEN", False, msg)
+
+		sock.close()
+
 	def run(self):
-		test_list = [self.checkAutoyastFiles, self.checkLudicrousStarted,  \
+		test_list = [self.checkSSHOpen, self.checkAutoyastFiles, self.checkLudicrousStarted,  \
 				self.checkPartition, self.checkPkgInstall]
 
 		# Check for WAIT status through the install

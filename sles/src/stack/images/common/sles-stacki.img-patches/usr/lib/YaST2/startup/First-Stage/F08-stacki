@@ -52,6 +52,8 @@ echo "tracker = ${FRONTEND}:3825" > /tmp/stack.conf
 
 /opt/stack/bin/python3 -E /opt/stack/bin/ludicrous-client.py --environment initrd --trackerfile='/tmp/stack.conf';
 
+/opt/stack/bin/python3 -E /opt/stack/bin/BackendTest.py --environment initrd
+
 #
 # configure the hardware disk array controller first
 #
@@ -92,4 +94,3 @@ fi
 # execute code that runs just prior to the autoyast gui 
 #
 PYTHONPATH=/tmp /opt/stack/bin/python3 -c "exec(\"from stack_site import *\\ntry: \\n patch() \\nexcept: \\n pass\" )"
-
