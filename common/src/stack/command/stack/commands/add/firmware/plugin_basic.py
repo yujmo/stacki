@@ -13,6 +13,7 @@
 import stack.commands
 from stack.exception import ArgRequired, ArgUnique, ArgError, ParamRequired, ParamError
 import stack.firmware
+from stack.util import unique_everseen, lowered
 from pathlib import Path
 from contextlib import ExitStack
 import re
@@ -21,167 +22,217 @@ class Plugin(stack.commands.Plugin):
 	"""Attempts to add firmware to be tracked by stacki."""
 
 	def provides(self):
-		return 'basic'
+		return "basic"
+
+	def validate_args(self, args):
+		"""Validate that a version number is provided and that there is only one."""
+		# Require a version name
+		if not args:
+			raise ArgRequired(cmd = self.owner, arg = "version")
+		# should only be one version name
+		if len(args) != 1:
+			raise ArgUnique(cmd = self.owner, arg = "version")
+
+	def validate_required_params(self, source, make, model):
+		"""Validate that the required parameters are provided."""
+		# require a source
+		if not source:
+			raise ParamRequired(cmd = self.owner, param = "source")
+		# require both make and model
+		if not make:
+			raise ParamRequired(cmd = self.owner, param = "make")
+		if not model:
+			raise ParamRequired(cmd = self.owner, param = "model")
+
+	def validate_imp(self, make, model, imp):
+		"""Validate whether an imp is required due to the model not already existing,
+		and validate that if the model exists that any requested implementation matches.
+		"""
+		# require an implementation if the model does not exist.
+		if not imp and not self.owner.model_exists(make = make, model = model):
+			# Get the list of valid makes + models and add them to the error message in an attempt to be helpful
+			makes_and_models = "\n".join(
+				f"{make_model['make']} + {make_model['model']}" for make_model in
+				self.owner.call(command = "list.firmware.model")
+			)
+			raise ParamError(
+				cmd = self.owner,
+				param = "imp",
+				msg = (
+					f"is required because make and model combination {make} + {model} doesn't exist."
+					f" Did you mean to use one of the below makes and/or models?\n{makes_and_models}"
+				),
+			)
+		# Raise an error if the implementation was provided for an already existing model, and it does not match.
+		if imp and self.owner.model_exists(make = make, model = model):
+			existing_imp = self.owner.call(
+				command = "list.firmware.model",
+				args = [model, f"make={make}"]
+			)[0]["implementation"]
+
+			if imp != existing_imp:
+				raise ParamError(
+					cmd = self.owner,
+					param = "imp",
+					msg = (
+						f"The provided imp {imp} doesn't match the existing imp {existing_imp} for the already existing"
+						f" model {model} for make {make}. Did you not mean to specify an imp? The parameter is not required"
+						" for existing models."
+					)
+				)
+
+	def validate_hash_alg_supported(self, hash_alg):
+		"""Validates that the requested hash algorithm is supported."""
+		try:
+			stack.firmware.ensure_hash_alg_supported(hash_alg = hash_alg)
+		except stack.firmware.FirmwareError as exception:
+			raise ParamError(
+				cmd = self.owner,
+				param = "hash_alg",
+				msg = f"{exception}",
+			) from exception
 
 	def validate_version(self, version, make, model):
-		"""Attempts to validate the version number against a version_regex if one is set for the make or model provided."""
+		"""Attempts to validate the version number against a version_regex if one is set for the
+		make or model provided as well as ensuring the firmware version doesn't already exist.
+		"""
 		# Attempt to get the version regex entry.
 		regex = self.owner.try_get_version_regex(make = make, model = model)
 		if regex and not re.search(regex.regex, version, re.IGNORECASE):
 			raise ArgError(
 				cmd = self.owner,
-				arg = 'version',
+				arg = "version",
 				msg = (
-					f'The format of the version number {version} does not validate based on the regex {regex.regex}'
-					f' named {regex.name}{f" with description {regex.description}" if regex.description else ""}.'
+					f"The format of the version number {version} does not validate based on the regex {regex.regex}"
+					f" named {regex.name}{f' with description {regex.description}' if regex.description else ''}."
 				)
 			)
-		# else there's nothing to check
 
-	def validate_arguments(self, version, params):
-		"""Validates that the expected arguments are present and that the optional arguments are specified correctly (if at all).
-
-		Returns the validated arguments if all checks are successful
-		"""
-		source, make, model, imp, hosts, hash_value, hash_alg = params
-		# Require a version name
-		if not version:
-			raise ArgRequired(cmd = self.owner, arg = 'version')
-		# should only be one version name
-		if len(version) != 1:
-			raise ArgUnique(cmd = self.owner, arg = 'version')
-
-		version_number = version[0]
-		# require a source
-		if not source:
-			raise ParamRequired(cmd = self.owner, param = 'source')
-		# require both make and model
-		if not make:
-			raise ParamRequired(cmd = self.owner, param = 'make')
-		if not model:
-			raise ParamRequired(cmd = self.owner, param = 'model')
-		# require an implementation if the make and/or model do not both exist.
-		if not imp and not self.owner.make_exists(make = make) and not self.owner.model_exists(make = make, model = model):
-			# Get the list of valid makes + models and add them to the error message in an attempt to be helpful
-			makes_and_models = "\n".join(
-				f"{make_model['make']} {make_model['model']}" for make_model in
-				self.owner.call(command = "list.firmware.model")
-			)
-			raise ParamError(
-				cmd = self.owner,
-				param = 'imp',
-				msg = (
-					f"is required because make {make} and/or model {model} don't exist."
-					f" Did you mean to use one of the below makes and/or models?\n{makes_and_models}"
-				)
-			)
-		# require hash_alg to be one of the always present ones
-		if hash_alg not in stack.firmware.SUPPORTED_HASH_ALGS:
-			raise ParamError(
-				cmd = self.owner,
-				param = 'hash_alg',
-				msg = f'hash_alg must be one of the following: {stack.firmware.SUPPORTED_HASH_ALGS}'
-			)
-		# validate the version matches the version_regex if one is set.
-		self.validate_version(version = version_number, make = make, model = model)
-		# Convert hosts to a list if set
-		if hosts:
-			hosts = [host.strip() for host in hosts.split(",") if host.strip()]
-			# Validate the hosts exist.
-			self.owner.getHosts(args = hosts)
-
-		return (version_number, source, make, model, imp, hosts, hash_value, hash_alg)
-
-	def add_related_entries(self, make, model, imp, cleanup):
-		"""Adds the related database entries if they do not exist."""
-		# create the implementation if provided one and it doesn't already exist
-		if imp and not self.owner.imp_exists(imp = imp):
-			self.owner.call(command = 'add.firmware.imp', args = [imp])
-			cleanup.callback(self.owner.call, command = 'remove.firmware.imp', args = [imp])
-
-		# create the make if it doesn't already exist
-		if make and not self.owner.make_exists(make = make):
-			self.owner.call(command = 'add.firmware.make', args = [make])
-			cleanup.callback(self.owner.call, command = 'remove.firmware.make', args = [make])
-
-		# create the model if it doesn't already exist
-		if make and model and imp and not self.owner.model_exists(make = make, model = model):
-			self.owner.call(command = 'add.firmware.model', args = [model, f'make={make}', f'imp={imp}'])
-			cleanup.callback(self.owner.call, command = 'remove.firmware.model', args = [model, f'make={make}'])
-
-	def run(self, args):
-		params, version = args
-		params = self.owner.fillParams(
-			names = [
-				('source', ''),
-				('make', ''),
-				('model', ''),
-				('imp', ''),
-				('hosts', ''),
-				('hash', None),
-				('hash_alg', 'md5')
-			],
-			params = params
-		)
-
-		# validate the args before use
-		version, source, make, model, imp, hosts, hash_value, hash_alg = self.validate_arguments(
-			version = version,
-			params = params
-		)
-
-		# ensure the firmware version doesn't already exist for the given model
-		if self.owner.firmware_exists(make, model, version):
+		if self.owner.firmware_exists(make = make, model = model, version = version):
 			raise ArgError(
 				cmd = self.owner,
-				arg = 'version',
-				msg = f'The firmware version {version} for make {make} and model {model} already exists.'
+				arg = "version",
+				msg = f"The firmware version {version} for make {make} and model {model} already exists.",
 			)
+
+	def create_missing_imp(self, imp, cleanup):
+		"""Adds an implementation to the database if provided and it doesn't already exist."""
+		# create the implementation if provided one and it doesn't already exist
+		if imp and not self.owner.imp_exists(imp = imp):
+			self.owner.call(command = "add.firmware.imp", args = [imp])
+			cleanup.callback(self.owner.call, command = "remove.firmware.imp", args = [imp])
+
+	def create_missing_make(self, make, cleanup):
+		"""Adds a make to the database if it doesn't already exist."""
+		# create the make if it doesn't already exist
+		if not self.owner.make_exists(make = make):
+			self.owner.call(command = "add.firmware.make", args = [make])
+			cleanup.callback(self.owner.call, command = "remove.firmware.make", args = [make])
+
+	def create_missing_model(self, make, model, imp, cleanup):
+		"""Adds a model to the database if it doesn't already exist."""
+		# create the model if it doesn't already exist
+		if not self.owner.model_exists(make = make, model = model):
+			self.owner.call(command = "add.firmware.model", args = [model, f"make={make}", f"imp={imp}"])
+			cleanup.callback(self.owner.call, command = "remove.firmware.model", args = [model, f"make={make}"])
+
+	def fetch_firmware(self, source, make, model, cleanup):
+		"""Try to fetch the firmware from the source and return the path to the file."""
+		try:
+			file_path = stack.firmware.fetch_firmware(
+				source = source,
+				make = make,
+				model = model,
+			)
+
+			def file_cleanup():
+				"""Remove the file if it exists.
+
+				Needed because "stack remove firmware" also removes the file
+				and that might have been run as part of the exit stack unwinding.
+				"""
+				if file_path.exists():
+					file_path.unlink()
+
+			cleanup.callback(file_cleanup)
+			return file_path
+
+		except stack.firmware.FirmwareError as exception:
+			raise ParamError(
+				cmd = self.owner,
+				param = "source",
+				msg = f"{exception}",
+			) from exception
+
+	def calculate_hash(self, file_path, hash_alg, hash_value):
+		"""Calculate the file hash and verify it against the provided hash, if present."""
+		try:
+			return stack.firmware.calculate_hash(file_path = file_path, hash_alg = hash_alg, hash_value = hash_value)
+		except stack.firmware.FirmwareError as exception:
+			raise ParamError(
+				cmd = self.owner,
+				param = "hash",
+				msg = f"{exception}",
+			) from exception
+
+	def run(self, args):
+		params, args = args
+		self.validate_args(args = args)
+		version = args[0]
+
+		*params_to_lower, hash_value, hash_alg, source = self.owner.fillParams(
+			names = [
+				("make", ""),
+				("model", ""),
+				("imp", ""),
+				("hosts", ""),
+				("hash", ""),
+				("hash_alg", "md5"),
+				("source", ""),
+			],
+			params = params,
+		)
+		# Lowercase all params that can be.
+		make, model, imp, hosts = lowered(params_to_lower)
+		self.validate_required_params(source = source, make = make, model = model)
+		# Check if an implementation is required, and whether one was provided.
+		self.validate_imp_required(make = make, model = model, imp = imp)
+		# Validate that the hash algorithm is supported
+		self.validate_hash_alg_supported(hash_alg = hash_alg)
+		# validate the version matches the version_regex if one is set and that it doesn't already exist.
+		self.validate_version(version = version, make = make, model = model)
+		# Convert hosts to a list if set
+		if hosts:
+			# Make sure the host names are unique.
+			hosts = tuple(unique_everseen(host.strip() for host in hosts.split(",") if host.strip()))
+			# Validate the hosts exist.
+			hosts = self.owner.getHosts(args = hosts)
 
 		# we use ExitStack to hold our cleanup operations and roll back should something fail.
 		with ExitStack() as cleanup:
 			# fetch the firmware from the source and copy the firmware into a stacki managed file
-			try:
-				file_path = stack.firmware.fetch_firmware(
-					source = source,
-					make = make,
-					model = model
-				)
-
-				def file_cleanup():
-					"""Remove the file if it exists.
-
-					Needed because "stack remove firmware" also removes the file
-					and that might have been run as part of the exit stack unwinding.
-					"""
-					if file_path.exists():
-						file_path.unlink()
-
-				cleanup.callback(file_cleanup)
-			except stack.firmware.FirmwareError as exception:
-				raise ParamError(
-					cmd = self.owner,
-					param = 'source',
-					msg = f'{exception}'
-				)
+			file_path = self.fetch_firmware(
+				source = source,
+				make = make,
+				model = model,
+				cleanup = cleanup,
+			)
 			# calculate the file hash and compare it with the user provided value if present.
-			try:
-				file_hash = stack.firmware.calculate_hash(file_path = file_path, hash_alg = hash_alg, hash_value = hash_value)
-			except stack.firmware.FirmwareError as exception:
-				raise ParamError(
-					cmd = self.owner,
-					param = 'hash',
-					msg = f'{exception}'
-				)
-
-			# add make and model database entries if needed.
+			file_hash = self.calculate_hash(
+				file_path = file_path,
+				hash_alg = hash_alg,
+				hash_value = hash_value,
+			)
+			# add imp, make, and model database entries if needed.
+			self.create_missing_imp(imp = imp, cleanup = cleanup)
+			self.create_missing_make(make = make, cleanup = cleanup)
 			self.add_related_entries(make = make, model = model, imp = imp, cleanup = cleanup)
 
 			# get the ID of the model to associate with
 			model_id = self.owner.get_model_id(make, model)
 			# insert into DB associated with make + model
 			self.owner.db.execute(
-				'''
+				"""
 				INSERT INTO firmware (
 					model_id,
 					source,
@@ -191,8 +242,8 @@ class Plugin(stack.commands.Plugin):
 					file
 				)
 				VALUES (%s, %s, %s, %s, %s, %s)
-				''',
-				(model_id, source, version, hash_alg, file_hash, str(file_path))
+				""",
+				(model_id, source, version, hash_alg, file_hash, str(file_path)),
 			)
 			cleanup.callback(self.owner.call, command = "remove.firmware", args = [version, f"make={make}", f"model={model}"])
 
